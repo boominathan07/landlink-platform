@@ -1,5 +1,5 @@
+opencv-python-headless
+numpy
 paddleocr
 paddlepaddle
-numpy
-pillow
-opencv-python-headless
+Pillow
