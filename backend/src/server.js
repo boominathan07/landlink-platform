@@ -7,27 +7,6 @@ const mongoose = require('mongoose');
 const { Server } = require('socket.io');
 const path = require('path');
 const fs = require('fs');
-const allowedOrigins = [
-  "http://localhost:5173",
-  "https://landlink-platform.vercel.app"
-];
-
-app.use(cors({
-  origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error("Not allowed by CORS"));
-    }
-  },
-  credentials: true,
-  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"]
-}));
-
-// IMPORTANT: handle preflight requests
-app.options("*", cors());
-
 const {
   apiLimiter,
   authLimiter,
@@ -69,6 +48,27 @@ const publicRoutes = require('./routes/public');
 const app = express();
 const server = http.createServer(app);
 
+const allowedOrigins = [
+  'http://localhost:5173',
+  'https://landlink-platform.vercel.app'
+];
+
+app.use(cors({
+  origin: function (origin, callback) {
+    if (!origin) return callback(null, true);
+
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+
+    return callback(new Error('Not allowed by CORS'));
+  },
+  credentials: true,
+  methods: ['GET','POST','PUT','DELETE','PATCH','OPTIONS'],
+  allowedHeaders: ['Content-Type','Authorization']
+}));
+
+app.options('*', cors());
 const io = new Server(server, {
   cors: { origin: process.env.CLIENT_URL || 'http://localhost:5173', credentials: true },
 });
@@ -80,12 +80,12 @@ const clientOrigins = [
   process.env.FRONTEND_URL,
 ].filter(Boolean);
 
-app.use(cors({
-  origin: clientOrigins.length ? clientOrigins : 'http://localhost:5173',
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-}));
+// app.use(cors({
+//   origin: clientOrigins.length ? clientOrigins : 'http://localhost:5173',
+//   credentials: true,
+//   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+//   allowedHeaders: ['Content-Type', 'Authorization'],
+// }));
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 app.use(apiLimiter);
 app.use(express.json({ limit: '10mb' }));
