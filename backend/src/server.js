@@ -7,6 +7,7 @@ const mongoose = require('mongoose');
 const { Server } = require('socket.io');
 const path = require('path');
 const fs = require('fs');
+app.use(cors());
 const {
   apiLimiter,
   authLimiter,
