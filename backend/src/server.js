@@ -7,7 +7,27 @@ const mongoose = require('mongoose');
 const { Server } = require('socket.io');
 const path = require('path');
 const fs = require('fs');
-app.use(cors());
+const allowedOrigins = [
+  "http://localhost:5173",
+  "https://landlink-platform.vercel.app"
+];
+
+app.use(cors({
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error("Not allowed by CORS"));
+    }
+  },
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"]
+}));
+
+// IMPORTANT: handle preflight requests
+app.options("*", cors());
+
 const {
   apiLimiter,
   authLimiter,
