@@ -28,25 +28,22 @@ const allowedOrigins = [
   'https://landlink-platform.vercel.app'
 ];
 
-const corsOptions = {
+app.use(cors({
   origin: function (origin, callback) {
-    // allow server-to-server or curl
     if (!origin) return callback(null, true);
 
     if (allowedOrigins.includes(origin)) {
       return callback(null, true);
     }
 
-    return callback(null, true); // TEMP SAFE MODE (prevents CORS crash)
+    return callback(null, true); // keep open to avoid crashes
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-};
+  methods: ['GET','POST','PUT','DELETE','PATCH','OPTIONS'],
+  allowedHeaders: ['Content-Type','Authorization']
+}));
 
-// ✅ IMPORTANT: CORS MUST BE FIRST
-app.use(cors(corsOptions));
-app.options('*', cors(corsOptions));
+app.options('*', cors());
 
 // Socket IO
 const io = new Server(server, {
