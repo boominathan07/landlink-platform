@@ -9,7 +9,10 @@ import re
 import sys
 from pathlib import Path
 
-import cv2
+try:
+    import cv2
+except ImportError:
+    cv2 = None
 import numpy as np
 
 os.environ.setdefault("FLAGS_use_mkldnn", "0")
@@ -21,7 +24,7 @@ HEADER_RE = re.compile(
 )
 
 
-def load_image(image_path):
+# def load_image(image_path):
     img = cv2.imread(str(image_path))
     if img is None:
         from PIL import Image
@@ -31,7 +34,19 @@ def load_image(image_path):
     if img is None:
         raise ValueError(f"Cannot read image: {image_path}")
     return img
+def load_image(image_path):
+    if cv2 is not None:
+        img = cv2.imread(str(image_path))
+        if img is not None:
+            return img
 
+    from PIL import Image
+    pil = Image.open(image_path).convert("RGB")
+    import numpy as np
+    import cv2 as cv2_fallback
+
+    img = cv2_fallback.cvtColor(np.array(pil), cv2_fallback.COLOR_RGB2BGR)
+    return img
 
 def preprocess_image(img):
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
