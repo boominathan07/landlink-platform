@@ -1,16 +1,17 @@
 # 🏘️ LandLink
 
 ### 🚀 Intro
-LandLink is a modern SaaS platform that helps **land owners and brokers manage plot sales transparently** — from layout upload to booking, commission tracking, and real-time updates. Built as a full-stack MERN application with role-based dashboards for owners and brokers.
+LandLink is a modern Micro SaaS platform that helps **land owners and brokers manage plot sales transparently** — from layout upload to booking, commission tracking, and real-time updates. Built as a full-stack MERN application with role-based dashboards for owners and brokers.
 
 ---
 
 ### 🛠️ Technologies
 - **Frontend:** React 18, Vite, Tailwind CSS v4, React Router
 - **Backend:** Node.js, Express 5, MongoDB, Mongoose
-- **Auth:** JWT + OTP (dev OTP: `123456`)
+- **OCR:** Python
+- **Auth:** JWT 
 - **Real-time:** Socket.io
-- **File Storage:** Cloudinary (optional) or local temp storage
+- **File Storage:** Cloudinary
 - **Payments:** Razorpay (dev upgrade available)
 
 ---
