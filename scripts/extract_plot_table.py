@@ -11,6 +11,7 @@ import json
 import os
 import re
 import sys
+import traceback
 from pathlib import Path
 
 import cv2
@@ -18,6 +19,29 @@ import numpy as np
 
 os.environ.setdefault("FLAGS_use_mkldnn", "0")
 os.environ.setdefault("PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK", "True")
+os.environ.setdefault("OMP_NUM_THREADS", "1")
+os.environ.setdefault("MKL_NUM_THREADS", "1")
+
+
+def emit_error(message, detail=None):
+    payload = {"error": message}
+    if detail:
+        payload["detail"] = detail
+    print(json.dumps(payload), file=sys.stderr, flush=True)
+
+
+def configure_paddle_home():
+    if os.environ.get("PADDLEOCR_HOME"):
+        return
+    base = os.environ.get("PADDLE_HOME") or os.environ.get("XDG_CACHE_HOME")
+    if not base:
+        base = "/tmp/paddleocr" if sys.platform != "win32" else os.path.join(
+            os.environ.get("LOCALAPPDATA", os.path.expanduser("~")),
+            "paddleocr",
+        )
+    cache_root = os.path.join(base, "paddleocr")
+    os.makedirs(cache_root, exist_ok=True)
+    os.environ["PADDLEOCR_HOME"] = cache_root
 
 
 HEADER_RE = re.compile(
@@ -325,7 +349,15 @@ def extract_row_fields(cells):
 
 
 def create_paddle_ocr():
-    from paddleocr import PaddleOCR
+    configure_paddle_home()
+
+    try:
+        from paddleocr import PaddleOCR
+    except ImportError as exc:
+        raise RuntimeError(
+            "paddleocr is not installed. Install backend/requirements-ocr.txt "
+            "(paddlepaddle + paddleocr)."
+        ) from exc
 
     kwargs = {
         "use_angle_cls": True,
@@ -339,7 +371,10 @@ def create_paddle_ocr():
         )
 
     except (TypeError, ValueError):
-        return PaddleOCR(**kwargs)
+        try:
+            return PaddleOCR(lang="en")
+        except (TypeError, ValueError):
+            return PaddleOCR(**kwargs)
 
 
 def run_paddle_ocr(ocr, image):
@@ -392,29 +427,23 @@ def extract_plot_table(image_path):
 
 def main():
     if len(sys.argv) < 2:
-        print(json.dumps([]))
+        emit_error("Missing image path argument")
         sys.exit(1)
 
-    image_path = Path(
-        sys.argv[1]
-    )
+    image_path = Path(sys.argv[1]).resolve()
 
-    if not image_path.exists():
-        print(json.dumps([]))
+    if not image_path.is_file():
+        emit_error(f"Image file not found: {image_path}")
         sys.exit(1)
 
     try:
-        output = extract_plot_table(
-            image_path
-        )
-
-    except Exception:
-        print(json.dumps([]))
+        output = extract_plot_table(image_path)
+    except Exception as exc:
+        emit_error("PaddleOCR plot extraction failed", traceback.format_exc())
         sys.exit(1)
 
-    print(
-        json.dumps(output)
-    )
+    print(json.dumps(output), flush=True)
+    sys.exit(0)
 
 
 if __name__ == "__main__":

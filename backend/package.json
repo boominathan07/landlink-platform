@@ -5,7 +5,8 @@
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
-    "dev": "nodemon src/server.js"
+    "dev": "nodemon src/server.js",
+    "install-ocr": "python3 -m pip install --upgrade pip && python3 -m pip install -r requirements-ocr.txt"
   },
   "type": "commonjs",
   "dependencies": {

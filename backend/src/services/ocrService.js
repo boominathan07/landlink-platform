@@ -3,12 +3,53 @@ const path = require('path');
 
 const SCRIPT = path.join(__dirname, '../../../scripts/extract_plot_table.py');
 
-const pythonPaths = [
-  'C:\\Users\\USER\\AppData\\Local\\Programs\\Python\\Python312\\python.exe',
-  process.env.PYTHON_PATH,
-  'python',
-  'python3',
-].filter(Boolean);
+function getPythonPaths() {
+  const paths = [];
+
+  if (process.env.PYTHON_PATH) {
+    paths.push(process.env.PYTHON_PATH);
+  }
+
+  if (process.platform === 'win32') {
+    paths.push(
+      'C:\\Users\\USER\\AppData\\Local\\Programs\\Python\\Python312\\python.exe',
+      path.join(process.env.LOCALAPPDATA || '', 'Programs/Python/Python312/python.exe'),
+      path.join(process.env.LOCALAPPDATA || '', 'Programs/Python/Python311/python.exe'),
+      'py',
+      'python',
+      'python3',
+    );
+  } else {
+    paths.push('python3', 'python');
+  }
+
+  return [...new Set(paths.filter(Boolean))];
+}
+
+function formatScriptFailure(code, stdout, stderr) {
+  const errText = (stderr || '').trim();
+  if (errText) {
+    try {
+      const parsed = JSON.parse(errText);
+      if (parsed.error) {
+        const detail = parsed.detail ? `\n${parsed.detail}` : '';
+        return new Error(`${parsed.error}${detail}`);
+      }
+    } catch {
+      // not JSON — use raw stderr
+    }
+    return new Error(errText);
+  }
+
+  const outText = (stdout || '').trim();
+  if (outText) {
+    return new Error(
+      `PaddleOCR script exited with code ${code}. Output: ${outText.slice(0, 800)}`,
+    );
+  }
+
+  return new Error(`PaddleOCR script exited with code ${code}`);
+}
 
 function mapPaddleRow(row) {
   const plotNumber = String(row.plotNumber || row.plot_number || '').trim();
@@ -58,6 +99,7 @@ function parseScriptOutput(output) {
 
 async function extractPlotsFromImage(imagePath) {
   let lastError = null;
+  const pythonPaths = getPythonPaths();
 
   for (const pythonPath of pythonPaths) {
     try {
@@ -85,7 +127,7 @@ async function extractPlotsFromImage(imagePath) {
 
         child.on('close', (code) => {
           if (code !== 0) {
-            reject(new Error(errorOutput || `PaddleOCR script exited with code ${code}`));
+            reject(formatScriptFailure(code, output, errorOutput));
             return;
           }
 
@@ -96,7 +138,9 @@ async function extractPlotsFromImage(imagePath) {
           }
         });
 
-        child.on('error', reject);
+        child.on('error', (err) => {
+          reject(new Error(`Failed to run Python (${pythonPath}): ${err.message}`));
+        });
       });
 
       if (plots.length > 0) return plots;
