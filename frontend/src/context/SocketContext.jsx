@@ -24,6 +24,7 @@ export function SocketProvider({ children }) {
 
     const s = io(SOCKET_URL, {
       auth: { token },
+      withCredentials: true,
       transports: ['polling', 'websocket'],
       reconnection: true,
       reconnectionAttempts: 10,

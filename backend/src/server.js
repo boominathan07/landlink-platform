@@ -27,41 +27,74 @@ const server = http.createServer(app);
 
 /* -------------------- Allowed Origins -------------------- */
 
-const allowedOrigins = [
-  "http://localhost:5173",
-  "https://landlink-platform.vercel.app",
-];
+function normalizeOrigin(value) {
+  if (!value || typeof value !== "string") return "";
+  return value.trim().replace(/\/+$/, "");
+}
+
+function buildAllowedOrigins() {
+  const defaults = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "https://landlink-platform.vercel.app",
+  ];
+
+  const fromEnv = [
+    process.env.CLIENT_URL,
+    process.env.FRONTEND_URL,
+    process.env.CORS_ORIGINS,
+  ]
+    .filter(Boolean)
+    .flatMap((entry) => String(entry).split(","))
+    .map(normalizeOrigin)
+    .filter(Boolean);
+
+  return [...new Set([...defaults.map(normalizeOrigin), ...fromEnv])];
+}
+
+const allowedOrigins = buildAllowedOrigins();
+
+function corsOrigin(origin, callback) {
+  // Postman, mobile apps, server-to-server (no Origin header)
+  if (!origin) return callback(null, true);
+
+  const normalized = normalizeOrigin(origin);
+  if (allowedOrigins.includes(normalized)) {
+    // Reflect exact origin (required when credentials: true; never use "*")
+    return callback(null, normalized);
+  }
+
+  return callback(new Error(`Origin ${origin} not allowed by CORS`));
+}
+
+const corsOptions = {
+  origin: corsOrigin,
+  credentials: true,
+  methods: ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: [
+    "Content-Type",
+    "Authorization",
+    "Accept",
+    "Origin",
+    "X-Requested-With",
+  ],
+  optionsSuccessStatus: 204,
+};
 
 /* -------------------- CORS -------------------- */
 
-app.use(
-  cors({
-    origin(origin, callback) {
-      // Allow Postman, mobile apps, server-to-server requests
-      if (!origin) return callback(null, true);
-
-      if (allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
-
-      return callback(new Error(`Origin ${origin} not allowed by CORS`));
-    },
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-  })
-);
-
-// ❌ Remove this line in Express 5
-// app.options("*", cors());
+app.use(cors(corsOptions));
+// Express 5: explicit preflight handler (app.options("*") is not supported)
+app.options(/.*/, cors(corsOptions));
 
 /* -------------------- Socket.IO -------------------- */
 
 const io = new Server(server, {
   cors: {
-    origin: allowedOrigins,
+    origin: corsOrigin,
     credentials: true,
-    methods: ["GET", "POST"],
+    methods: ["GET", "POST", "OPTIONS"],
+    allowedHeaders: corsOptions.allowedHeaders,
   },
 });
 
