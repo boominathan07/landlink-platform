@@ -20,6 +20,7 @@ const documentRoutes = require("./routes/documents");
 const notificationRoutes = require("./routes/notifications");
 const subscriptionRoutes = require("./routes/subscription");
 const analyticsRoutes = require("./routes/analytics");
+const { warmupPaddleOcrCache } = require("./services/ocrService");
 
 const app = express();
 const server = http.createServer(app);
@@ -142,6 +143,11 @@ mongoose
 
     server.listen(PORT, () => {
       console.log(`🚀 Server running on port ${PORT}`);
+      setImmediate(() => {
+        warmupPaddleOcrCache().catch((err) => {
+          console.warn("[ocr] Startup warmup skipped:", err.message);
+        });
+      });
     });
   })
   .catch((err) => {

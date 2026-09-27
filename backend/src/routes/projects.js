@@ -811,6 +811,7 @@ router.post('/:id/analyze-layout', roleCheck('owner'), (req, res, next) => {
     next();
   });
 }, async (req, res) => {
+  try {
   const project = await Project.findById(req.params.id);
   if (!project || !isProjectOwner(project, req.user._id)) {
     if (req.file?.path) try { await fs.promises.unlink(req.file.path); } catch { /* ignore */ }
@@ -818,10 +819,17 @@ router.post('/:id/analyze-layout', roleCheck('owner'), (req, res, next) => {
   }
   if (!req.file) return res.status(400).json({ message: 'Image file required. Use field name "image".' });
 
-  const imagePath = req.file.path;
+  const imagePath = path.resolve(req.file.path);
   console.log('analyze-layout: processing', imagePath, 'size', req.file.size);
 
-  try {
+  if (!fs.existsSync(imagePath)) {
+    return res.status(500).json({
+      success: false,
+      message: 'Uploaded image is not readable on the server.',
+      error: `Missing file: ${imagePath}`,
+    });
+  }
+
     const extraction = await extractPlotsHelper(imagePath);
     const rawExtractedPlots = extraction.plots;
 
@@ -998,13 +1006,14 @@ router.post('/:id/analyze-layout', roleCheck('owner'), (req, res, next) => {
 
   } catch (err) {
     console.error('Plot analysis error:', err);
-    // Cleanup on error
     if (req.file?.path) {
       try { await fs.promises.unlink(req.file.path); } catch { /* ignore */ }
     }
-    res.status(500).json({
+    const isTimeout = /timed out/i.test(err.message || '');
+    res.status(isTimeout ? 503 : 500).json({
       success: false,
-      message: err.message || 'Image analysis failed. Please try again with a clearer image.'
+      message: err.message || 'Image analysis failed. Please try again with a clearer image.',
+      error: err.message || 'Image analysis failed',
     });
   }
 });
